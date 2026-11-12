@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plus-Minus-Werkstatt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Atkinson+Hyperlegible:wght@400;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: Karoheft-Seite. Füllerblau für alles, Rotstift für Korrekturen, Textmarker für Serien. */
+:root{
+  --paper:#f7f8f3;
+  --grid:#cfdcec;
+  --ink:#1d2b53;
+  --ink-soft:#56628a;
+  --red:#d3302c;
+  --green:#1d8a4b;
+  --marker:#ffe24a;
+  --card:#ffffff;
+  --display:"Bricolage Grotesque", "Arial Black", system-ui, sans-serif;
+  --body:"Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --hand:"Caveat", "Comic Sans MS", cursive;
+  color-scheme: light;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.45;
+  background-color:var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:24px 24px;
+  background-position:-1px -1px;
+}
+.wrap{max-width:980px;margin:0 auto;padding:20px 16px 48px;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,6vw,56px);line-height:1;margin:0;letter-spacing:-.02em;text-wrap:balance}
+h1 .hl{background:linear-gradient(transparent 55%, var(--marker) 55%, var(--marker) 92%, transparent 92%);padding:0 .08em}
+.sub{margin:6px 0 0;color:var(--ink-soft)}
+nav{display:flex;gap:6px;flex-wrap:wrap}
+nav a{font-family:var(--display);font-weight:600;text-decoration:none;color:var(--ink);padding:8px 14px;border:2px solid var(--ink);border-radius:999px;background:var(--card)}
+nav a[aria-current="page"]{background:var(--ink);color:var(--paper)}
+nav a:focus-visible,button:focus-visible,.slot:focus-visible,.mcard:focus-visible{outline:3px solid var(--marker);outline-offset:2px}
+
+.sheet{background:var(--card);border:2px solid var(--ink);border-radius:14px;box-shadow:6px 6px 0 var(--ink);padding:24px}
+.hidden{display:none !important}
+
+/* Brüche */
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-family:var(--display);font-weight:800;line-height:1.05;margin:0 .1em}
+.frac>span{padding:0 .15em;min-width:1.2em;text-align:center;font-variant-numeric:tabular-nums}
+.frac>.n{border-bottom:.09em solid currentColor;padding-bottom:.06em}
+.frac>.d{padding-top:.06em}
+.eq{font-family:var(--display);font-weight:800;margin:0 .25em;vertical-align:middle}
+
+/* Blitzrunde */
+.hud{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.tile{border:2px solid var(--ink);border-radius:10px;padding:8px 12px;background:var(--paper)}
+.tile b{display:block;font-family:var(--display);font-size:30px;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile small{color:var(--ink-soft);font-size:14px}
+.tile.streak.on{background:var(--marker)}
+.timebar{height:10px;border:2px solid var(--ink);border-radius:999px;overflow:hidden;margin-bottom:22px;background:var(--paper)}
+.timebar i{display:block;height:100%;width:100%;background:var(--ink);transform-origin:left;transition:transform .1s linear}
+.timebar.low i{background:var(--red)}
+.task-kind{font-family:var(--hand);font-size:30px;color:var(--ink-soft);margin:0 0 6px}
+.task{font-size:clamp(40px,8vw,72px);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;min-height:2.6em;gap:.05em}
+.slot{width:1.9em;font:inherit;font-size:.8em;text-align:center;border:none;border-bottom:3px dashed var(--ink-soft);background:#eef3fb;border-radius:6px 6px 0 0;color:var(--ink);padding:0}
+.frac .slot{margin:.04em 0}
+.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+button{font-family:var(--display);font-weight:800;font-size:20px;border:2px solid var(--ink);border-radius:10px;background:var(--card);color:var(--ink);padding:10px 22px;cursor:pointer;box-shadow:3px 3px 0 var(--ink);transition:transform .08s, box-shadow .08s}
+button:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+button.primary{background:var(--ink);color:var(--paper)}
+button.yes{background:#e3f4ea}
+button.no{background:#fbe6e5}
+.flash-ok{animation:ok .45s}
+@keyframes ok{0%{background:#d5f0df}100%{background:var(--card)}}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pop{position:absolute;font-family:var(--display);font-weight:800;color:var(--green);font-size:28px;pointer-events:none;animation:pop .8s forwards}
+@keyframes pop{to{transform:translateY(-40px);opacity:0}}
+.correction{margin-top:18px;border-left:5px solid var(--red);padding:10px 16px;background:#fff4f3;border-radius:0 10px 10px 0}
+.correction .hand{font-family:var(--hand);font-size:30px;color:var(--red);line-height:1.1}
+.correction .way{font-size:34px;margin-top:6px;color:var(--red)}
+.correction .way .frac{color:var(--red)}
+.task-area{position:relative}
+
+.start{display:grid;gap:18px}
+.start p{margin:0;max-width:62ch}
+.levels{display:flex;gap:10px;flex-wrap:wrap}
+.levels label{display:flex;align-items:center;gap:8px;border:2px solid var(--ink);border-radius:10px;padding:8px 14px;cursor:pointer;background:var(--paper)}
+.levels input{accent-color:var(--ink);width:18px;height:18px}
+.levels label:has(input:checked){background:var(--marker)}
+.best{font-family:var(--hand);font-size:26px;color:var(--ink-soft)}
+
+.result h2{font-family:var(--display);font-size:40px;margin:0}
+.grade{font-family:var(--hand);font-size:44px;color:var(--red);transform:rotate(-4deg);display:inline-block}
+.mistakes{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:10px}
+.mistakes li{border-bottom:1px dashed var(--grid);padding-bottom:8px;font-size:26px;display:flex;flex-wrap:wrap;align-items:center;gap:.4em}
+.mistakes .yours{font-family:var(--hand);color:var(--red);font-size:24px}
+
+/* Paare */
+.pairbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:16px}
+.teams{display:flex;gap:10px;flex-wrap:wrap}
+.team{border:2px solid var(--ink);border-radius:10px;padding:6px 14px;font-family:var(--display);font-weight:800;font-size:20px;background:var(--paper)}
+.team.active{box-shadow:0 0 0 4px var(--marker)}
+.team.a .dot{color:#2a6fdb}.team.b .dot{color:#e07a10}
+.toggle{display:flex;align-items:center;gap:8px;font-size:16px}
+.toggle input{width:18px;height:18px;accent-color:var(--ink)}
+.board{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media (max-width:560px){.board{grid-template-columns:repeat(3,1fr)}}
+.mcard{aspect-ratio:4/3;border:2px solid var(--ink);border-radius:12px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:clamp(26px,5vw,40px);padding:6px;position:relative;font-family:var(--display);font-weight:800;transition:transform .2s}
+.mcard .back{font-family:var(--hand);font-size:.9em;opacity:.55}
+.mcard .face{display:none;flex-direction:column;align-items:center;gap:6px;width:100%}
+.mcard.open,.mcard.done{background:var(--card);color:var(--ink);cursor:default}
+.mcard.open .face,.mcard.done .face{display:flex}
+.mcard.open .back,.mcard.done .back{display:none}
+.mcard.done.ta{background:#e2ecfb;border-color:#2a6fdb}
+.mcard.done.tb{background:#fdebd8;border-color:#e07a10}
+.mcard.miss{animation:shake .3s}
+.bar{display:flex;width:90%;height:16px;border:2px solid var(--ink);border-radius:3px;overflow:hidden}
+.bar i{flex:1;border-right:1.5px solid var(--ink)}
+.bar i:last-child{border-right:none}
+.bar i.f{background:var(--marker)}
+.pairmsg{font-family:var(--hand);font-size:30px;text-align:center;min-height:1.3em;margin-top:12px}
+
+/* Regeln */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+.rule h3{font-family:var(--display);font-size:26px;margin:0 0 6px}
+.rule .big{font-size:40px;margin:10px 0}
+.rule .op{font-family:var(--hand);font-size:24px;color:var(--red)}
+.vis{display:grid;gap:8px;margin-top:6px}
+.vis .bar{width:100%;height:28px}
+.vis .lbl{display:flex;align-items:center;gap:10px;font-size:22px}
+.tip{font-family:var(--hand);font-size:26px;color:var(--ink-soft);margin-top:10px}
+.divs{font-size:17px;color:var(--ink-soft);margin:6px 0 0;padding-left:20px}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important;transition:none !important}
+}
+@media (max-width:480px){
+  .sheet{padding:16px}
+  .tile b{font-size:24px}
+}
+
+/* Ergänzungen Plus-Minus */
+.task{font-size:clamp(32px,6.5vw,62px)}
+.mcard.term{font-size:clamp(18px,3.4vw,30px)}
+.termline{display:flex;align-items:center;justify-content:center;flex-wrap:nowrap}
+.correction .way{font-size:clamp(22px,4vw,32px);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Plus-Minus-<span class="hl">Werkstatt</span></h1>
+      <p class="sub">Brüche addieren und subtrahieren: allein auf dem Tablet oder im Duell am Beamer.</p>
+    </div>
+    <nav aria-label="Spielmodus">
+      <a href="#blitz" data-view="blitz">Blitzrunde</a>
+      <a href="#paare" data-view="paare">Paare finden</a>
+      <a href="#regeln" data-view="regeln">So geht's</a>
+    </nav>
+  </header>
+
+  <!-- BLITZRUNDE -->
+  <section id="view-blitz" class="sheet" aria-labelledby="blitz-h">
+    <div id="b-start" class="start">
+      <h2 id="blitz-h" style="font-family:var(--display);font-size:34px;margin:0">2 Minuten. So viele Aufgaben wie möglich.</h2>
+      <p>Rechne aus und gib das Ergebnis <b>vollständig gekürzt</b> ein. Jede richtige Antwort gibt 10 Punkte. Ab 3 richtigen am Stück zählt jede Antwort doppelt, ab 6 dreifach, ab 9 vierfach. Bei einem Fehler hält die Uhr an und der Rotstift zeigt den Rechenweg.</p>
+      <div class="levels" role="radiogroup" aria-label="Schwierigkeit">
+        <label><input type="radio" name="lvl" id="lvl1" value="1" checked> Stufe 1 <small>(gleichnamig)</small></label>
+        <label><input type="radio" name="lvl" id="lvl2" value="2"> Stufe 2 <small>(ein Nenner ist Vielfaches des anderen)</small></label>
+        <label><input type="radio" name="lvl" id="lvl3" value="3"> Stufe 3 <small>(beide Brüche gleichnamig machen)</small></label>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        <button class="primary" id="b-go">Los geht's</button>
+        <span class="best" id="b-best"></span>
+      </div>
+      <div class="task" aria-hidden="true" style="font-size:44px;justify-content:flex-start;min-height:0;color:var(--ink-soft)">
+        <span class="frac"><span class="n">1</span><span class="d">4</span></span><span class="eq">+</span><span class="frac"><span class="n">3</span><span class="d">8</span></span><span class="eq">=</span><span class="frac"><span class="n">5</span><span class="d">8</span></span>
+        <span style="font-family:var(--hand);font-size:28px;margin-left:12px">← so sieht eine Aufgabe aus</span>
+      </div>
+    </div>
+
+    <div id="b-game" class="hidden">
+      <div class="hud">
+        <div class="tile"><small>Punkte</small><b id="h-score">0</b></div>
+        <div class="tile streak" id="h-streak-tile"><small>Serie</small><b id="h-streak">0</b></div>
+        <div class="tile"><small>Zeit</small><b id="h-time">120</b></div>
+      </div>
+      <div class="timebar" id="timebar"><i id="timefill"></i></div>
+      <div class="task-area" id="task-area">
+        <p class="task-kind" id="t-kind"></p>
+        <form id="t-form" autocomplete="off">
+          <div class="task" id="t-task"></div>
+          <div class="actions" id="t-actions"></div>
+        </form>
+        <div id="t-corr" class="correction hidden" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <div id="b-result" class="hidden result">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2><span id="r-score">0</span> Punkte</h2>
+          <p style="margin:4px 0 0" id="r-stats"></p>
+        </div>
+        <span class="grade" id="r-grade"></span>
+      </div>
+      <div id="r-mist-wrap">
+        <h3 style="font-family:var(--display);margin:20px 0 0">Das schauen wir uns nochmal an:</h3>
+        <ul class="mistakes" id="r-mist"></ul>
+      </div>
+      <div class="actions" style="justify-content:flex-start;margin-top:22px">
+        <button class="primary" id="r-again">Nochmal</button>
+        <button id="r-menu">Stufe ändern</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- PAARE -->
+  <section id="view-paare" class="sheet hidden" aria-label="Paare finden">
+    <div class="pairbar">
+      <div class="teams">
+        <div class="team a active" id="team-a"><span class="dot">●</span> Team A: <span id="sc-a">0</span></div>
+        <div class="team b" id="team-b"><span class="dot">●</span> Team B: <span id="sc-b">0</span></div>
+        <div class="team hidden" id="solo">Züge: <span id="moves">0</span></div>
+      </div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <label class="toggle" for="duel"><input type="checkbox" id="duel" checked> Zwei Teams</label>
+        <label class="toggle" for="hard"><input type="checkbox" id="hard"> Schwierigere Nenner</label>
+        <button id="p-new">Neues Spiel</button>
+      </div>
+    </div>
+    <p style="margin:0 0 14px;color:var(--ink-soft)">Finde zu jeder Rechnung die Karte mit dem Ergebnis (vollständig gekürzt, mit Streifenbild). Wer ein Paar findet, darf nochmal.<br><b>Rechnen im Heft ist erlaubt!</b> Tipp: Erst eine Rechnungskarte aufdecken. Sie bleibt offen, bis du die zweite Karte wählst. So hast du Zeit, sie schriftlich auszurechnen.</p>
+    <div class="board" id="board"></div>
+    <p class="pairmsg" id="pairmsg" aria-live="polite"></p>
+  </section>
+
+  <!-- REGELN -->
+  <section id="view-regeln" class="sheet hidden" aria-label="So geht's">
+    <div class="rules">
+      <div class="rule">
+        <h3>Gleichnamige Brüche</h3>
+        <p style="margin:0">Gleicher Nenner: <b>Zähler addieren bzw. subtrahieren</b>, der Nenner bleibt.</p>
+        <div class="big"><span class="frac"><span class="n">1</span><span class="d">5</span></span><span class="eq">+</span><span class="frac"><span class="n">2</span><span class="d">5</span></span><span class="eq">=</span><span class="frac"><span class="n">1 + 2</span><span class="d">5</span></span><span class="eq">=</span><span class="frac"><span class="n">3</span><span class="d">5</span></span></div>
+        <div class="vis" aria-hidden="true">
+          <div class="lbl"><span class="frac" style="font-size:20px"><span class="n">1</span><span class="d">5</span></span><div class="bar" id="vis1"></div></div>
+          <div class="lbl"><span class="frac" style="font-size:20px"><span class="n">2</span><span class="d">5</span></span><div class="bar" id="vis2"></div></div>
+          <div class="lbl"><span class="frac" style="font-size:20px"><span class="n">3</span><span class="d">5</span></span><div class="bar" id="vis3"></div></div>
+        </div>
+        <p class="tip">Fünftel plus Fünftel gibt Fünftel. Den Nenner nie addieren!</p>
+      </div>
+      <div class="rule">
+        <h3>Ungleichnamige Brüche</h3>
+        <ol class="divs" style="color:var(--ink);font-size:18px">
+          <li>Gleichnamig machen: einen gemeinsamen Nenner suchen</li>
+          <li>Beide Brüche auf diesen Nenner erweitern</li>
+          <li>Zähler rechnen, Nenner bleibt</li>
+          <li>Ergebnis kürzen</li>
+        </ol>
+        <div class="big" style="font-size:32px"><span class="frac"><span class="n">1</span><span class="d">4</span></span><span class="eq">+</span><span class="frac"><span class="n">1</span><span class="d">6</span></span><span class="eq">=</span><span class="frac"><span class="n">3</span><span class="d">12</span></span><span class="eq">+</span><span class="frac"><span class="n">2</span><span class="d">12</span></span><span class="eq">=</span><span class="frac"><span class="n">5</span><span class="d">12</span></span></div>
+      </div>
+      <div class="rule">
+        <h3>Gleichnamig machen</h3>
+        <p style="margin:0">Such die <b>kleinste Zahl</b>, die in beiden Einmaleins-Reihen vorkommt. Das ist der gemeinsame Nenner.</p>
+        <ul class="divs">
+          <li><b>4:</b> 4, 8, <mark style="background:var(--marker)">12</mark>, 16 …</li>
+          <li><b>6:</b> 6, <mark style="background:var(--marker)">12</mark>, 18 …</li>
+        </ul>
+        <p class="tip">Trick: Ist der größere Nenner schon ein Vielfaches des kleineren, nimm einfach den größeren Nenner.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+const $ = s => document.querySelector(s);
+const gcd = (a,b) => b ? gcd(b, a % b) : a;
+const lcm = (a,b) => a / gcd(a,b) * b;
+const ri = (a,b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const F = (n,d) => `<span class="frac"><span class="n">${n}</span><span class="d">${d}</span></span>`;
+const E = s => `<span class="eq">${s}</span>`;
+const S = (id,label) => `<input id="${id}" class="slot" inputmode="numeric" pattern="[0-9]*" maxlength="3" aria-label="${label}">`;
+const MINUS = '−';
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+};
+const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function barHTML(n,d){
+  return `<div class="bar" aria-hidden="true">${Array.from({length:d}, (_,i) => `<i class="${i<n?'f':''}"></i>`).join('')}</div>`;
+}
+$('#vis1').outerHTML = barHTML(1,5); $('#vis2').outerHTML = barHTML(2,5); $('#vis3').outerHTML = barHTML(3,5);
+
+/* ---------- Ansicht / Hash ---------- */
+let view = 'blitz';
+function show(v){
+  if(!['blitz','paare','regeln'].includes(v)) v = 'blitz';
+  view = v;
+  ['blitz','paare','regeln'].forEach(x => $('#view-'+x).classList.toggle('hidden', x!==v));
+  document.querySelectorAll('nav a').forEach(a => { if(a.dataset.view===v) a.setAttribute('aria-current','page'); else a.removeAttribute('aria-current'); });
+  if(v==='paare' && !$('#board').children.length) newPairs();
+  if(v!=='blitz' && game.running) stopTimer();
+  if(v==='blitz' && game.running && !game.paused) startTimer();
+}
+window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+/* ---------- Aufgaben ---------- */
+function properCoprime(d){
+  let n; do { n = ri(1, d-1); } while(gcd(n,d) !== 1);
+  return n;
+}
+// liefert {a,b,c,d,op} oder null
+function genSame(){
+  const d = ri(3, 12);
+  let a = ri(1, d-1), c = ri(1, d-1);
+  const op = Math.random() < .5 ? '+' : '-';
+  if(op==='-'){ if(a===c) return null; if(a<c) [a,c] = [c,a]; }
+  return {a, b:d, c, d, op};
+}
+function genMultiple(){
+  const small = ri(2, 6);
+  const m = ri(2, Math.floor(12/small));
+  if(m < 2) return null;
+  const big = small*m;
+  let t1 = {n:properCoprime(small), d:small}, t2 = {n:properCoprime(big), d:big};
+  if(Math.random() < .5) [t1,t2] = [t2,t1];
+  return {a:t1.n, b:t1.d, c:t2.n, d:t2.d, op: Math.random()<.5 ? '+' : '-'};
+}
+function genGeneral(){
+  const b = ri(2, 10), d = ri(2, 10);
+  if(b===d || b%d===0 || d%b===0) return null;
+  if(lcm(b,d) > 40) return null;
+  return {a:properCoprime(b), b, c:properCoprime(d), d, op: Math.random()<.5 ? '+' : '-'};
+}
+function finish(t){
+  if(!t) return null;
+  // bei Minus: größeren Bruch nach vorne
+  if(t.op==='-' && t.a*t.d < t.c*t.b){ [t.a,t.b,t.c,t.d] = [t.c,t.d,t.a,t.b]; }
+  const L = lcm(t.b, t.d);
+  const A = t.a*(L/t.b), C = t.c*(L/t.d);
+  const num = t.op==='+' ? A + C : A - C;
+  if(num <= 0) return null;
+  const g = gcd(num, L);
+  const rn = num/g, rd = L/g;
+  if(rd === 1) return null;            // kein ganzzahliges Ergebnis
+  return Object.assign(t, {L, A, C, num, rn, rd, g});
+}
+const LEVEL_GEN = {
+  1: [genSame],
+  2: [genSame, genMultiple, genMultiple],
+  3: [genMultiple, genGeneral, genGeneral]
+};
+function makeTask(level){
+  let t = null;
+  while(!t) t = finish(pick(LEVEL_GEN[level])());
+  const {a,b,c,d,op,L,A,C,num,rn,rd,g} = t;
+  const sym = op==='+' ? '+' : MINUS;
+  const term = F(a,b) + E(sym) + F(c,d);
+  const task = {};
+  task.kind = op==='+' ? 'Addiere und kürze vollständig' : 'Subtrahiere und kürze vollständig';
+  task.html = term + E('=') + F(S('x','Zähler'), S('y','Nenner'));
+  task.inputs = ['x','y'];
+  task.short = term + E('=') + F(rn, rd);
+  task.check = ([x,y]) => {
+    if(x===rn && y===rd) return {ok:true};
+    if(x*rd === y*rn) return {ok:false, hint:'Richtig gerechnet! Jetzt noch vollständig kürzen.'};
+    if(b===d && y === b+d) return {ok:false, hint:'Der Nenner bleibt gleich, nur die Zähler werden gerechnet!'};
+    const zn = op==='+' ? a+c : a-c, nn = op==='+' ? b+d : Math.abs(b-d);
+    if(b!==d && x===zn && y===nn) return {ok:false, hint:'Achtung: Nenner werden nie addiert oder subtrahiert! Erst gleichnamig machen.'};
+    return {ok:false};
+  };
+  let way = '';
+  if(b===d){
+    way = term + E('=') + F(`${a} ${sym} ${c}`, d) + E('=') + F(num, d);
+  } else {
+    const k1 = L/b, k2 = L/d;
+    way = `Gleichnamig machen, gemeinsamer Nenner: ${L}<br>` + term + E('=') +
+      (k1>1 ? F(`${a} · ${k1}`, `${b} · ${k1}`) : F(a,b)) + E(sym) +
+      (k2>1 ? F(`${c} · ${k2}`, `${d} · ${k2}`) : F(c,d)) + '<br>' +
+      E('=') + F(A, L) + E(sym) + F(C, L) + E('=') + F(num, L);
+  }
+  if(g > 1) way += E('=') + F(`${num} : ${g}`, `${L} : ${g}`) + E('=') + F(rn, rd);
+  if(rn > rd) way += `<br><span style="font-family:var(--hand);font-size:.8em">(Das Ergebnis ist größer als 1, ein unechter Bruch ist okay.)</span>`;
+  task.way = way;
+  task.raw = t;
+  return task;
+}
+
+/* ---------- Blitzrunde ---------- */
+const DURATION = 120;
+const game = {running:false, paused:false, left:DURATION, score:0, streak:0, right:0, total:0, task:null, mistakes:[], level:1, tick:null, last:0};
+function mult(){ return Math.min(4, 1 + Math.floor(game.streak/3)); }
+function bestKey(l){ return 'pmw-best-' + l; }
+function showBest(){
+  const lvl = document.querySelector('input[name="lvl"]:checked').value;
+  const b = store.get(bestKey(lvl));
+  $('#b-best').textContent = b ? `Rekord auf diesem Gerät: ${b} Punkte` : '';
+}
+document.querySelectorAll('input[name="lvl"]').forEach(r => r.addEventListener('change', showBest));
+showBest();
+
+function startGame(){
+  game.level = +document.querySelector('input[name="lvl"]:checked').value;
+  Object.assign(game, {running:true, paused:false, left:DURATION, score:0, streak:0, right:0, total:0, mistakes:[], task:null});
+  $('#b-start').classList.add('hidden');
+  $('#b-result').classList.add('hidden');
+  $('#b-game').classList.remove('hidden');
+  updateHud(); nextTask(); startTimer();
+}
+function startTimer(){
+  stopTimer();
+  game.last = performance.now();
+  game.tick = setInterval(() => {
+    const now = performance.now();
+    game.left -= (now - game.last)/1000;
+    game.last = now;
+    if(game.left <= 0){ game.left = 0; updateHud(); endGame(); return; }
+    updateHud();
+  }, 100);
+}
+function stopTimer(){ if(game.tick){ clearInterval(game.tick); game.tick = null; } }
+function updateHud(){
+  $('#h-score').textContent = game.score;
+  $('#h-streak').textContent = game.streak + (mult()>1 ? `  ×${mult()}` : '');
+  $('#h-streak-tile').classList.toggle('on', mult()>1);
+  $('#h-time').textContent = Math.ceil(game.left);
+  $('#timefill').style.transform = `scaleX(${game.left/DURATION})`;
+  $('#timebar').classList.toggle('low', game.left < 15);
+}
+function nextTask(){
+  const t = makeTask(game.level);
+  game.task = t;
+  $('#t-kind').textContent = t.kind;
+  $('#t-task').innerHTML = t.html;
+  $('#t-corr').classList.add('hidden');
+  $('#t-actions').innerHTML = '<button type="submit" class="primary">Prüfen ↵</button>';
+  t.inputs.forEach((id,i) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', () => { el.value = el.value.replace(/\D/g,''); });
+    el.addEventListener('keydown', e => {
+      if(e.key==='ArrowDown' && t.inputs[i+1]){ e.preventDefault(); document.getElementById(t.inputs[i+1]).focus(); }
+      if(e.key==='ArrowUp' && i>0){ e.preventDefault(); document.getElementById(t.inputs[i-1]).focus(); }
+    });
+  });
+  document.getElementById(t.inputs[0]).focus({preventScroll:true});
+}
+$('#t-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if(!game.running) return;
+  if(game.paused){ resume(); return; }
+  const t = game.task;
+  const vals = t.inputs.map(id => document.getElementById(id).value.trim());
+  const emptyIdx = vals.findIndex(v => v==='');
+  if(emptyIdx >= 0){
+    const el = document.getElementById(t.inputs[emptyIdx]);
+    el.focus(); el.classList.remove('shake'); void el.offsetWidth; el.classList.add('shake');
+    return;
+  }
+  answer(vals.map(Number), F(vals[0], vals[1]));
+});
+function answer(vals, shown){
+  if(game.paused || !game.running) return;
+  const t = game.task;
+  const res = t.check(vals);
+  game.total++;
+  if(res.ok){
+    game.right++;
+    const pts = 10 * mult();
+    game.score += pts; game.streak++;
+    updateHud();
+    const area = $('#task-area');
+    area.classList.remove('flash-ok'); void area.offsetWidth; area.classList.add('flash-ok');
+    if(!reduceMotion){
+      const p = document.createElement('span');
+      p.className = 'pop'; p.textContent = '+' + pts; p.style.left = '50%'; p.style.top = '30%';
+      area.appendChild(p); setTimeout(() => p.remove(), 800);
+    }
+    setTimeout(() => { if(game.running) nextTask(); }, 280);
+  } else {
+    game.streak = 0; updateHud();
+    game.paused = true; stopTimer();
+    game.mistakes.push({short:t.short, yours:shown});
+    const c = $('#t-corr');
+    c.innerHTML = `<div class="hand">${res.hint || 'Nicht ganz! So geht’s:'}</div><div class="way">${t.way}</div><div class="actions" style="justify-content:flex-start"><button type="button" class="primary" id="t-next">Weiter ↵</button></div>`;
+    c.classList.remove('hidden');
+    $('#t-actions').innerHTML = '';
+    $('#t-task').querySelectorAll('input').forEach(i => i.disabled = true);
+    $('#t-next').addEventListener('click', resume);
+    $('#t-next').focus({preventScroll:true});
+  }
+}
+function resume(){
+  if(!game.paused) return;
+  game.paused = false; nextTask();
+  if(view==='blitz') startTimer();
+}
+function endGame(){
+  stopTimer();
+  game.running = false; game.paused = false;
+  $('#b-game').classList.add('hidden');
+  $('#b-result').classList.remove('hidden');
+  $('#r-score').textContent = game.score;
+  const acc = game.total ? Math.round(100*game.right/game.total) : 0;
+  $('#r-stats').textContent = `${game.right} von ${game.total} richtig (${acc} %) · Stufe ${game.level}`;
+  const prev = +(store.get(bestKey(game.level)) || 0);
+  let grade;
+  if(game.score > prev && game.score > 0){ store.set(bestKey(game.level), game.score); grade = 'Neuer Rekord!'; }
+  else if(acc >= 90 && game.total >= 5) grade = 'Super!';
+  else if(acc >= 70) grade = 'Gut gemacht!';
+  else grade = 'Weiter üben!';
+  $('#r-grade').textContent = grade;
+  $('#r-mist').innerHTML = game.mistakes.map(m => `<li>${m.short} <span class="yours">(du: ${m.yours})</span></li>`).join('');
+  $('#r-mist-wrap').classList.toggle('hidden', !game.mistakes.length);
+  $('#r-again').focus({preventScroll:true});
+}
+$('#b-go').addEventListener('click', startGame);
+$('#r-again').addEventListener('click', startGame);
+$('#r-menu').addEventListener('click', () => { $('#b-result').classList.add('hidden'); $('#b-start').classList.remove('hidden'); showBest(); });
+
+/* ---------- Paare finden ---------- */
+const pairs = {cards:[], open:[], lock:false, turn:'a', sc:{a:0,b:0}, moves:0, found:0};
+function newPairs(){
+  const hard = $('#hard').checked;
+  const gens = hard ? [genMultiple, genGeneral, genGeneral] : [genSame, genMultiple];
+  const used = new Set(), list = [];
+  let guard = 0;
+  while(list.length < 6 && guard++ < 5000){
+    const t = finish(pick(gens)());
+    if(!t || t.rn >= t.rd || t.rd > 12) continue;
+    const key = t.rn + '/' + t.rd;
+    if(used.has(key)) continue;
+    used.add(key); list.push(t);
+  }
+  const cards = [];
+  list.forEach((t,i) => {
+    const sym = t.op==='+' ? '+' : MINUS;
+    cards.push({id:i, cls:'term', html: `<div class="termline">${F(t.a,t.b)}${E(sym)}${F(t.c,t.d)}</div>`, label:`${t.a} ${t.b}tel ${t.op==='+'?'plus':'minus'} ${t.c} ${t.d}tel`});
+    cards.push({id:i, cls:'', html: F(t.rn,t.rd) + barHTML(t.rn,t.rd), label:`Ergebnis ${t.rn} von ${t.rd}`});
+  });
+  for(let i=cards.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [cards[i],cards[j]] = [cards[j],cards[i]]; }
+  Object.assign(pairs, {cards, open:[], lock:false, turn:'a', sc:{a:0,b:0}, moves:0, found:0});
+  const board = $('#board');
+  board.innerHTML = cards.map((c,i) => `<div class="mcard ${c.cls}" role="button" tabindex="0" data-i="${i}" aria-label="Karte ${i+1}, verdeckt"><span class="back">?</span><div class="face">${c.html}</div></div>`).join('');
+  board.querySelectorAll('.mcard').forEach(el => {
+    el.addEventListener('click', () => flip(el));
+    el.addEventListener('keydown', e => { if(e.key==='Enter' || e.key===' '){ e.preventDefault(); flip(el); } });
+  });
+  $('#pairmsg').textContent = $('#duel').checked ? 'Team A beginnt.' : 'Finde alle 6 Paare.';
+  updatePairHud();
+}
+function updatePairHud(){
+  const duel = $('#duel').checked;
+  $('#team-a').classList.toggle('hidden', !duel);
+  $('#team-b').classList.toggle('hidden', !duel);
+  $('#solo').classList.toggle('hidden', duel);
+  $('#sc-a').textContent = pairs.sc.a; $('#sc-b').textContent = pairs.sc.b;
+  $('#moves').textContent = pairs.moves;
+  $('#team-a').classList.toggle('active', pairs.turn==='a');
+  $('#team-b').classList.toggle('active', pairs.turn==='b');
+}
+function flip(el){
+  if(pairs.lock || el.classList.contains('open') || el.classList.contains('done')) return;
+  const i = +el.dataset.i;
+  el.classList.add('open');
+  el.setAttribute('aria-label', `Karte ${i+1}: ${pairs.cards[i].label}`);
+  pairs.open.push(el);
+  if(pairs.open.length < 2) return;
+  pairs.moves++;
+  const [x,y] = pairs.open;
+  const duel = $('#duel').checked;
+  if(pairs.cards[+x.dataset.i].id === pairs.cards[+y.dataset.i].id){
+    [x,y].forEach(c => { c.classList.remove('open'); c.classList.add('done', duel ? 't'+pairs.turn : 'ta'); });
+    pairs.open = []; pairs.found++;
+    if(duel) pairs.sc[pairs.turn]++;
+    if(pairs.found === 6){
+      $('#pairmsg').textContent = duel
+        ? (pairs.sc.a===pairs.sc.b ? `Unentschieden, ${pairs.sc.a} : ${pairs.sc.b}!` : `Team ${pairs.sc.a>pairs.sc.b?'A':'B'} gewinnt ${Math.max(pairs.sc.a,pairs.sc.b)} : ${Math.min(pairs.sc.a,pairs.sc.b)}!`)
+        : `Geschafft in ${pairs.moves} Zügen!`;
+    } else {
+      $('#pairmsg').textContent = duel ? `Paar! Team ${pairs.turn.toUpperCase()} ist nochmal dran.` : 'Paar gefunden!';
+    }
+  } else {
+    pairs.lock = true;
+    $('#pairmsg').textContent = 'Kein Paar. Rechne im Heft nach!';
+    setTimeout(() => {
+      [x,y].forEach(c => { c.classList.remove('open'); c.classList.add('miss'); c.setAttribute('aria-label', `Karte ${+c.dataset.i+1}, verdeckt`); setTimeout(() => c.classList.remove('miss'), 300); });
+      pairs.open = []; pairs.lock = false;
+      if(duel){ pairs.turn = pairs.turn==='a' ? 'b' : 'a'; $('#pairmsg').textContent = `Team ${pairs.turn.toUpperCase()} ist dran.`; }
+      updatePairHud();
+    }, 1600);
+  }
+  updatePairHud();
+}
+$('#p-new').addEventListener('click', newPairs);
+$('#duel').addEventListener('change', newPairs);
+$('#hard').addEventListener('change', newPairs);
+
+/* ---------- Start ---------- */
+function start(data){ show(location.hash.slice(1) || (data && data.view) || 'blitz'); }
+try { window.claude?.hot?.snapshot?.(() => ({view})); } catch(e){}
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+</body>
+</html>
